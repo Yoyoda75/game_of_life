@@ -49,8 +49,9 @@ class Board(np.ndarray):
         """
         Initialises a board filled with randoms 1s and 0s.
         """
-        # TODO: modify the initialisation so that it can favor 1s and return a "fuller" starting board.
-        self[:] = np.random.randint(0, 2, size=(self.size, self.size))
+        # self[:] = np.random.randint(0, 2, size=(self.size, self.size))
+        # Modify the values in p to change the distribution's uniformity
+        self[:] = np.random.choice(a=[0, 1], size=(self.size, self.size), p=[0.25, 0.75])
 
     def next_step(self):
         """
