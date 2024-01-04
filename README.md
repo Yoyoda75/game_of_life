@@ -4,7 +4,7 @@ Thanks to its author.
 
 # Rules
 * Any live cell with fewer than 2 neighbors dies (*Underpopulation*)
-* Any live cell with 2 or 3 neighbors stays alive
+* Any live cell with 2 or 3 neighbors stays alive (*Survival*)
 * Any live cell with more than 3 neighbors dies (*Overpopulation*)
 * Any live cell with exactly three neighbors becomes alive (*Reproduction*)
 
