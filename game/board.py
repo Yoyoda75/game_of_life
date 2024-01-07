@@ -75,7 +75,6 @@ class Board(np.ndarray):
         dies = np.logical_or(
             self.neighbors < 2, self.neighbors > 3
         )  # Underpopulation and overpopulation together (rules 1 & 3)
-
         stays_alive = np.logical_and(
             population, np.logical_or(self.neighbors == 2, self.neighbors == 3)
         )  # Survival (rule 2)
