@@ -9,11 +9,10 @@ class Board(np.ndarray):
     A board object that represents the Game of Life's board.
     """
 
-    def __new__(cls, kernel, size=DEFAULT_SIZE):
+    def __new__(cls, size=DEFAULT_SIZE):
         """Initialize an array of zeros"""
         obj = np.zeros((size, size), dtype=np.uint8).view(cls)
         obj._size = size
-        obj.kernel = kernel
         return obj
 
     def __array_finalize__(self, obj):
@@ -21,6 +20,12 @@ class Board(np.ndarray):
         if obj is None:
             return
         self._size = getattr(obj, "_size", DEFAULT_SIZE)
+
+    @property
+    def kernel(self):
+        kernel = np.ones((3, 3), dtype=np.uint8)
+        kernel[1, 1] = 0
+        return kernel
 
     @property
     def size(self):
@@ -40,7 +45,7 @@ class Board(np.ndarray):
     @property
     def neighbors(self):
         """Returns a convolution of the board using the 3 by 3 kernel."""
-        return scipy.signal.convolve2d(self, self.kernel, mode="same", boundary="wrap")
+        return scipy.signal.convolve2d(self.copy(), self.kernel, mode="same", boundary="wrap")
 
     def clear(self):
         self[:] = 0
@@ -51,7 +56,7 @@ class Board(np.ndarray):
         """
         # self[:] = np.random.randint(0, 2, size=(self.size, self.size))
         # Modify the values in p to change the distribution's uniformity
-        self[:] = np.random.choice(a=[0, 1], size=(self.size, self.size), p=[0.25, 0.75])
+        self[:] = np.random.choice(a=[0, 1], size=(self.size, self.size), p=[0.5, 0.5])
 
     def next_step(self):
         """
@@ -67,9 +72,10 @@ class Board(np.ndarray):
         # Creating an array of True and False representing the 1s and 0s of the original board
         population = self.astype(np.bool_)
         # Settings the rules with numpy logical operators
-        dies = np.logical_or.reduce(
-            [population, self.neighbors <= 1, self.neighbors >= 4]
+        dies = np.logical_or(
+            self.neighbors < 2, self.neighbors > 3
         )  # Underpopulation and overpopulation together (rules 1 & 3)
+
         stays_alive = np.logical_and(
             population, np.logical_or(self.neighbors == 2, self.neighbors == 3)
         )  # Survival (rule 2)
