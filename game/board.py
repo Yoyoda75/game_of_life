@@ -3,6 +3,7 @@ import scipy
 from rich.align import Align
 from rich.panel import Panel
 from rich.table import Table
+from typing import List
 
 DEFAULT_SIZE = 20
 MAX_PREVIOUS_BOARDS = 10
@@ -59,12 +60,11 @@ class Board(np.ndarray):
 
     @previous_boards.setter
     def previous_boards(self, array: np.ndarray):
-        if len(self._previous_boards) > 9:
+        if len(self._previous_boards) > MAX_PREVIOUS_BOARDS:
             del self._previous_boards[0]
 
         # Converting the array to a sparse matrix and then to a hashable type
-        array = scipy.sparse.csr_matrix(array)
-        self._previous_boards.append(tuple(array.data))
+        self._previous_boards.append(array)
 
     @property
     def neighbors(self):
@@ -73,8 +73,12 @@ class Board(np.ndarray):
         return scipy.signal.convolve2d(np.copy(self), self.kernel, mode="same", boundary="wrap")
 
     def is_stable(self) -> bool:
-        if len(self.previous_boards) >= 10 and len(set(self.previous_boards)) == 2:
-            return True
+        """
+        Returns True if the current board has already been seen in one the MAX_PREVIOUS_BOARDS number of boards.
+        This helps identify a stable board that goes back and forth between 2 states.
+        """
+        if len(self.previous_boards) >= MAX_PREVIOUS_BOARDS:
+            return any(np.array_equal(self.copy(), board) for board in self.previous_boards)
         return False
 
     def is_empty(self) -> bool:
@@ -102,6 +106,7 @@ class Board(np.ndarray):
         3. Overpopulation: a live cell with more than 3 neighbors dies
         4. Reproduction: a dead cell with exactly 3 neighbors becomes alive
         """
+        self.previous_boards = self.copy()
         # Creating an array of True and False representing the 1s and 0s of the original board
         population = self.astype(np.bool_)
         # Settings the rules with numpy logical operators
@@ -115,7 +120,6 @@ class Board(np.ndarray):
 
         # Applying the rules to the current board without having to create a new one
         self[:] = np.where(dies, 0, np.where(stays_alive, 1, np.where(becomes_alive, 1, self)))
-        self.previous_boards = self.copy()
 
     def render_rich_table(self) -> Table:
         def format_cell(cell):
@@ -132,8 +136,21 @@ class Board(np.ndarray):
             table.add_row(*row)
 
         table = Panel.fit(table, title="Game of Life", padding=(0, 0), subtitle=f"Step n°{self.step}")
-        table = Align.center(table)
+        table = Align.center(table, vertical="middle")
 
         # Incrementing the step by one (see step.setter)
         self.step = 1
         return table
+
+    def make_glider(self):
+        """Creates a glider shape and insert it in the main board."""
+        glider = np.array([[0, 0, 1], [1, 0, 1], [0, 1, 1]])  # define the glider shape
+        glider = np.pad(glider, pad_width=1, mode="constant", constant_values=0)  # pad the glider shape with zeros
+
+        # Choose a random 90 degrees rotation and applies it to the glider
+        rotation = np.random.choice(a=[0, 1, 2, 3])
+        glider = np.rot90(glider, k=rotation)
+
+        # Choose a random starting point for the glider within the boundaries of the board (-4)
+        start = np.random.randint(0, self.size - 4)
+        self[start : start + 5, start : start + 5] = glider
