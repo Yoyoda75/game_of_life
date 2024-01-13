@@ -1,5 +1,8 @@
 import numpy as np
 import scipy
+from rich.align import Align
+from rich.panel import Panel
+from rich.table import Table
 
 DEFAULT_SIZE = 20
 
@@ -38,14 +41,13 @@ class Board(np.ndarray):
         self._size = value
 
     @property
-    def is_empty(self) -> bool:
-        """Checks whether the board is empty or not."""
-        return np.count_nonzero(self) == 0
-
-    @property
     def neighbors(self):
         """Returns a convolution of the board using the 3 by 3 kernel."""
         return scipy.signal.convolve2d(self.copy(), self.kernel, mode="same", boundary="wrap")
+
+    def is_empty(self) -> bool:
+        """Checks if the board is empty (full of 0s)."""
+        return np.count_nonzero(self) == 0
 
     def clear(self):
         self[:] = 0
@@ -83,7 +85,19 @@ class Board(np.ndarray):
         # Applying the rules to the current board without having to create a new one
         self[:] = np.where(dies, 0, np.where(stays_alive, 1, np.where(becomes_alive, 1, self)))
 
-    def evolution(self, steps: int):
-        for _ in range(steps):
-            self.next_step()
-            yield self
+    def render(self, step: int = 0) -> Table:
+        table = Table(show_header=False, show_footer=False, show_edge=False, box=None)
+        table.padding = (0, 0)
+        table.pad_edge = False
+
+        columns = self.shape[1]
+        for column in range(columns):
+            table.add_column(no_wrap=True)
+
+        for row in self:
+            formatted_row = ["██" if element else "  " for element in row]
+            table.add_row(*formatted_row)
+
+        table = Panel.fit(table, title="Game of Life", padding=(0, 0), subtitle=f"Step n°{step}")
+        table = Align.center(table)
+        return table
