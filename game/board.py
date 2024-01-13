@@ -5,6 +5,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 DEFAULT_SIZE = 20
+MAX_PREVIOUS_BOARDS = 10
 
 
 class Board(np.ndarray):
@@ -15,7 +16,9 @@ class Board(np.ndarray):
     def __new__(cls, size=DEFAULT_SIZE):
         """Initialize an array of zeros"""
         obj = np.zeros((size, size), dtype=np.uint8).view(cls)
-        obj._size = size
+        obj._size: int = size
+        obj._previous_boards: List = []
+        obj._step = 0
         return obj
 
     def __array_finalize__(self, obj):
@@ -23,6 +26,16 @@ class Board(np.ndarray):
         if obj is None:
             return
         self._size = getattr(obj, "_size", DEFAULT_SIZE)
+        self._previous_boards = getattr(obj, "_previous_boards", [])
+        self._step = getattr(obj, "_step", 0)
+
+    @property
+    def step(self):
+        return self._step
+
+    @step.setter
+    def step(self, value: int):
+        self._step += value
 
     @property
     def kernel(self):
@@ -41,10 +54,28 @@ class Board(np.ndarray):
         self._size = value
 
     @property
+    def previous_boards(self):
+        return self._previous_boards
+
+    @previous_boards.setter
+    def previous_boards(self, array: np.ndarray):
+        if len(self._previous_boards) > 9:
+            del self._previous_boards[0]
+
+        # Converting the array to a sparse matrix and then to a hashable type
+        array = scipy.sparse.csr_matrix(array)
+        self._previous_boards.append(tuple(array.data))
+
+    @property
     def neighbors(self):
         """Returns a convolution of the board using the 3 by 3 kernel."""
         # return scipy.signal.convolve2d(self.copy(), self.kernel, mode="same", boundary="wrap")
         return scipy.signal.convolve2d(np.copy(self), self.kernel, mode="same", boundary="wrap")
+
+    def is_stable(self) -> bool:
+        if len(self.previous_boards) >= 10 and len(set(self.previous_boards)) == 2:
+            return True
+        return False
 
     def is_empty(self) -> bool:
         """Checks if the board is empty (full of 0s)."""
@@ -53,11 +84,10 @@ class Board(np.ndarray):
     def clear(self):
         self[:] = 0
 
-    def init_random_board(self):
+    def randomize_board(self):
         """
         Initialises a board filled with randoms 1s and 0s.
         """
-        # self[:] = np.random.randint(0, 2, size=(self.size, self.size))
         # Modify the values in p to change the distribution's uniformity
         self[:] = np.random.choice(a=[0, 1], size=(self.size, self.size), p=[0.5, 0.5])
 
@@ -85,8 +115,9 @@ class Board(np.ndarray):
 
         # Applying the rules to the current board without having to create a new one
         self[:] = np.where(dies, 0, np.where(stays_alive, 1, np.where(becomes_alive, 1, self)))
+        self.previous_boards = self.copy()
 
-    def render_rich_table(self, step: int = 0) -> Table:
+    def render_rich_table(self) -> Table:
         def format_cell(cell):
             return "██" if cell else "  "
 
@@ -100,6 +131,9 @@ class Board(np.ndarray):
         for row in formatted_board:
             table.add_row(*row)
 
-        table = Panel.fit(table, title="Game of Life", padding=(0, 0), subtitle=f"Step n°{step}")
+        table = Panel.fit(table, title="Game of Life", padding=(0, 0), subtitle=f"Step n°{self.step}")
         table = Align.center(table)
+
+        # Incrementing the step by one (see step.setter)
+        self.step = 1
         return table
