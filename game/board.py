@@ -51,7 +51,7 @@ class Board(np.ndarray):
     @size.setter
     def size(self, value: int):
         if value < 0:
-            return ValueError("Size cannot be negative")
+            raise ValueError("Size cannot be negative")
         self._size = value
 
     @property
