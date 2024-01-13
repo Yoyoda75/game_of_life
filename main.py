@@ -7,23 +7,23 @@ from rich.live import Live
 
 from game.board import Board
 
-
 SIZE = 30
 
 
 def main():
     console = Console()
     board = Board(SIZE)
-    board.init_random_board()
+    board.randomize_board()
 
-    repeats = 1_000_000
+    repeats = 100_000
     refresh = 60
     with Live(refresh_per_second=refresh, screen=True) as live:
-        for step in range(repeats):
+        while not board.is_stable():
             time.sleep(1 / refresh)
-            live.update(board.render(step))
+            live.update(board.render_rich_table())
             board.next_step()
 
+    console.print(f"The board has become stable at step n°{board.step}")
 
 if __name__ == "__main__":
     main()
